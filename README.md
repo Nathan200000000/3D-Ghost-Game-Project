@@ -26,4 +26,6 @@ It's a single `index.html` with no build step. Open it in a browser, or serve th
 npx serve .
 ```
 
-Three.js is loaded from the unpkg CDN. The game is deployed on Vercel as a static site.
+Three.js is loaded from the unpkg CDN.
+
+**Play online:** https://eidolon-iota.vercel.app
