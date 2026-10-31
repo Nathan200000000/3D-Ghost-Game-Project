@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Eidolon: Quantum Containment Protocol</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+        background: #0a0e12;
+        color: #e9f1fb;
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        transition: background 0.5s ease, color 0.5s ease;
+      }
+      body.light-mode {
+        background: #e8f0f8;
+        color: #1a2731;
+      }
+      #app {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      /* HUD Styling */
+      #hud {
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        right: 15px;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        pointer-events: none;
+        z-index: 100;
+      }
+      .hud-item {
+        background: rgba(10, 20, 30, 0.8);
+        backdrop-filter: blur(10px);
+        padding: 10px 16px;
+        border-radius: 12px;
+        border: 2px solid rgba(31, 156, 255, 0.3);
+        font-weight: 700;
+        font-size: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+      }
+      body.light-mode .hud-item {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: rgba(26, 39, 49, 0.3);
+      }
+      #health {
+        color: #ff4466;
+        animation: pulse 2s ease-in-out infinite;
+      }
+      #health.low {
+        animation: pulse-fast 0.5s ease-in-out infinite;
+        border-color: #ff4466;
+      }
+      #level {
+        color: #44ff88;
+      }
+      #objectives {
+        color: #ffaa44;
+      }
+      #timer {
+        color: #66aaff;
+      }
+      #score {
+        margin-left: auto;
+        color: #aa88ff;
+      }
+      #boost {
+        color: #44ff88;
+        display: none;
+      }
+      #boost.active {
+        display: block;
+        animation: glow 0.5s ease-in-out infinite alternate;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+      @keyframes pulse-fast {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.1);
+          opacity: 0.8;
+        }
+      }
+      @keyframes glow {
+        from {
+          box-shadow: 0 0 10px rgba(68, 255, 136, 0.5);
+        }
+        to {
+          box-shadow: 0 0 20px rgba(68, 255, 136, 0.8);
+        }
+      }
+
+      /* Instructions */
+      #instructions {
+        position: fixed;
+        bottom: 15px;
+        left: 15px;
+        background: rgba(10, 20, 30, 0.85);
+        backdrop-filter: blur(10px);
+        padding: 12px 20px;
+        border-radius: 12px;
+        border: 2px solid rgba(31, 156, 255, 0.3);
+        font-size: 13px;
+        opacity: 0.85;
+        pointer-events: none;
+        max-width: 500px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      }
+      body.light-mode #instructions {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: rgba(26, 39, 49, 0.3);
+      }
+      #instructions div {
+        margin: 4px 0;
+      }
+
+      /* Pause Indicator */
+      #pauseIndicator {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 64px;
+        font-weight: 900;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+        text-shadow: 0 0 30px rgba(31, 156, 255, 0.8);
+        z-index: 200;
+      }
+      #pauseIndicator.visible {
+        opacity: 1;
+      }
+
+      /* Theme Toggle */
+      #themeToggle {
+        position: fixed;
+        top: 80px;
+        right: 15px;
+        padding: 10px 16px;
+        font-size: 20px;
+        border-radius: 12px;
+        border: 2px solid rgba(31, 156, 255, 0.3);
+        background: rgba(10, 20, 30, 0.8);
+        backdrop-filter: blur(10px);
+        color: inherit;
+        cursor: pointer;
+        pointer-events: all;
+        transition: all 0.3s ease;
+        z-index: 100;
+      }
+      #themeToggle:hover {
+        background: rgba(31, 156, 255, 0.4);
+        transform: scale(1.1);
+        border-color: rgba(31, 156, 255, 0.6);
+      }
+      body.light-mode #themeToggle {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: rgba(26, 39, 49, 0.3);
+      }
+
+      /* Overlay */
+      #overlay {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(4, 7, 10, 0.95);
+        backdrop-filter: blur(8px);
+        transition: background 0.5s ease;
+        z-index: 300;
+      }
+      body.light-mode #overlay {
+        background: rgba(232, 240, 248, 0.95);
+      }
+      #overlay.hidden {
+        display: none;
+      }
+      #card {
+        text-align: center;
+        max-width: 600px;
+        padding: 40px;
+        background: rgba(20, 30, 40, 0.9);
+        border-radius: 20px;
+        border: 3px solid rgba(31, 156, 255, 0.5);
+        box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+      }
+      body.light-mode #card {
+        background: rgba(255, 255, 255, 0.95);
+        border-color: rgba(26, 39, 49, 0.3);
+      }
+      #title {
+        margin: 0 0 15px;
+        font-size: 36px;
+        font-weight: 900;
+        background: linear-gradient(135deg, #1f9cff, #44ff88);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      #subtitle {
+        font-size: 18px;
+        margin-bottom: 20px;
+        opacity: 0.9;
+      }
+      #storyText {
+        text-align: left;
+        line-height: 1.6;
+        margin: 20px 0;
+        padding: 20px;
+        background: rgba(31, 156, 255, 0.1);
+        border-radius: 10px;
+        border-left: 4px solid #1f9cff;
+      }
+      #card p {
+        margin: 10px 0;
+        opacity: 0.9;
+        line-height: 1.5;
+      }
+      button {
+        padding: 14px 28px;
+        font-weight: 800;
+        font-size: 16px;
+        border-radius: 12px;
+        border: none;
+        background: linear-gradient(135deg, #1f9cff, #44ff88);
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(31, 156, 255, 0.4);
+        margin: 10px;
+      }
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(31, 156, 255, 0.6);
+      }
+      button:active {
+        transform: translateY(0);
+      }
+
+      /* Level Complete Animation */
+      @keyframes levelComplete {
+        0% {
+          transform: scale(0.5) rotate(-10deg);
+          opacity: 0;
+        }
+        50% {
+          transform: scale(1.1) rotate(5deg);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1) rotate(0deg);
+          opacity: 1;
+        }
+      }
+      .level-complete {
+        animation: levelComplete 0.5s ease-out;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <!-- HUD -->
+    <div id="hud">
+      <div class="hud-item" id="health">❤ 100</div>
+      <div class="hud-item" id="level">Level 1</div>
+      <div class="hud-item" id="objectives">⚡ 0/1</div>
+      <div class="hud-item" id="timer">02:00</div>
+      <div class="hud-item" id="score">Score: 0</div>
+      <div class="hud-item" id="boost">🚀 BOOST!</div>
+    </div>
+
+    <!-- Instructions -->
+    <div id="instructions">
+      <div><strong>🎮 CONTROLS:</strong></div>
+      <div>WASD - Move | Mouse - Aim | RIGHT-CLICK - Shoot</div>
+      <div>ESC - Pause | R - Reset | 🌓 - Theme Toggle</div>
+      <div><strong>💡 TIP:</strong> Collect ⚡ energy orbs to advance!</div>
+    </div>
+
+    <!-- Pause Indicator -->
+    <div id="pauseIndicator">⏸ PAUSED</div>
+
+    <!-- Theme Toggle -->
+    <button id="themeToggle" title="Toggle Theme">🌓</button>
+
+    <!-- Overlay -->
+    <div id="overlay">
+      <div id="card">
+        <h1 id="title">EIDOLON</h1>
+        <div id="subtitle">Quantum Containment Protocol</div>
+        <div id="storyText">
+          <strong>📡 INCOMING TRANSMISSION...</strong><br /><br />
+          Agent, we've detected a quantum breach in Sector 7. Hostile
+          entities—codename "Eidolons"—are pouring through dimensional
+          portals.<br /><br />
+          <strong>YOUR MISSION:</strong><br />
+          • Collect quantum energy orbs (⚡) to stabilize the breach<br />
+          • Eliminate Eidolons and destroy portals<br />
+          • Each level requires more orbs as the threat escalates<br />
+          • Green orbs restore health and grant speed boosts<br /><br />
+          <strong>⚠ WARNING:</strong> Eidolon presence increases with each
+          level. Stay sharp, Agent.
+        </div>
+        <p><strong>Can you contain the breach before time runs out?</strong></p>
+        <button id="playBtn">🚀 BEGIN MISSION</button>
+      </div>
+    </div>
+
+    <canvas id="app"></canvas>
+
+    <script type="module">
+      import * as THREE from "three";
+
+      /* -------- Game State -------- */
+      const ctx = {
+        scene: null,
+        camera: null,
+        renderer: null,
+        raycaster: new THREE.Raycaster(),
+        groundPlane: new THREE.Plane(new THREE.Vector3(0, 1, 0), 0),
+        mouseNDC: new THREE.Vector2(),
+        mouseWorld: new THREE.Vector3(),
+        walls: [],
+        ghosts: [],
+        portals: [],
+        healthPickups: [],
+        energyOrbs: [],
+        projectiles: [],
+        score: 0,
+        health: 100,
+        timeLeft: 120,
+        playing: false,
+        paused: false,
+        lightMode: false,
+        currentLevel: 1,
+        orbsCollected: 0,
+        orbsNeeded: 1,
+        lights: {},
+        ground: null,
+        stripe: null,
+      };
+
+      let player;
+      const INTRO_STORY = document.getElementById("storyText").innerHTML;
+
+      /* -------- UI Functions -------- */
+      const $ = (id) => document.getElementById(id);
+      const setHealth = (v) => {
+        $("health").textContent = `❤ ${Math.max(0, Math.floor(v))}`;
+        $("health").classList.toggle("low", v < 30);
+      };
+      const setScore = (v) => ($("score").textContent = `Score: ${v}`);
+      const setLevel = (v) => ($("level").textContent = `Level ${v}`);
+      const setObjectives = (collected, needed) =>
+        ($("objectives").textContent = `⚡ ${collected}/${needed}`);
+      const setTimer = (sec) => {
+        const s = Math.max(0, Math.floor(sec));
+        const m = String(Math.floor(s / 60)).padStart(2, "0");
+        const r = String(s % 60).padStart(2, "0");
+        $("timer").textContent = `${m}:${r}`;
+      };
+      const showOverlay = () => $("overlay").classList.remove("hidden");
+      const hideOverlay = () => $("overlay").classList.add("hidden");
+      const setBoost = (active) =>
+        $("boost").classList.toggle("active", active);
+
+      /* -------- UI Setup -------- */
+      $("playBtn").onclick = () => {
+        hideOverlay();
+        ctx.playing = true;
+      };
+
+      $("themeToggle").onclick = () => {
+        ctx.lightMode = !ctx.lightMode;
+        document.body.classList.toggle("light-mode", ctx.lightMode);
+        updateTheme();
+      };
+
+      addEventListener("keydown", (e) => {
+        if (e.code === "KeyR") {
+          e.preventDefault();
+          resetGame();
+        }
+        if (e.code === "Escape") {
+          e.preventDefault();
+          if (ctx.playing) {
+            ctx.paused = !ctx.paused;
+            $("pauseIndicator").classList.toggle("visible", ctx.paused);
+          }
+        }
+      });
+
+      /* -------- Theme Management -------- */
+      function updateTheme() {
+        const dark = !ctx.lightMode;
+        ctx.scene.background.setHex(dark ? 0x0a0e12 : 0xb8d4ec);
+        ctx.scene.fog.color.setHex(dark ? 0x0a0e12 : 0xb8d4ec);
+        ctx.scene.fog.density = dark ? 0.035 : 0.015;
+
+        ctx.lights.ambient.color.setHex(dark ? 0x93a4b5 : 0xe8f0f8);
+        ctx.lights.ambient.intensity = dark ? 1.0 : 2.0;
+        ctx.lights.ambientGround.setHex(dark ? 0x081018 : 0x6a8ca8);
+
+        ctx.lights.directional.color.setHex(dark ? 0xaac4ff : 0xffffff);
+        ctx.lights.directional.intensity = dark ? 0.8 : 3.0;
+
+        ctx.lights.spotlight.color.setHex(dark ? 0x5a8fc4 : 0xffd89e);
+        ctx.lights.spotlight.intensity = dark ? 10 : 20;
+
+        ctx.lights.point1.intensity = dark ? 4 : 6;
+        ctx.lights.point2.intensity = dark ? 4 : 6;
+        ctx.lights.point1.color.setHex(dark ? 0x4a9fff : 0xffa94a);
+        ctx.lights.point2.color.setHex(dark ? 0x4a9fff : 0xffa94a);
+
+        if (ctx.ground)
+          ctx.ground.material.color.setHex(dark ? 0x1a2428 : 0xc8dce8);
+        ctx.walls.forEach((w) =>
+          w.material.color.setHex(dark ? 0x1a2731 : 0x8a9aa8)
+        );
+        if (ctx.stripe)
+          ctx.stripe.material.color.setHex(dark ? 0xa0b8c8 : 0x3a5a78);
+      }
+
+      /* -------- Three.js Setup -------- */
+      const canvas = $("app");
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      renderer.setSize(innerWidth, innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a0e12);
+      scene.fog = new THREE.FogExp2(0x0a0e12, 0.035);
+
+      const camera = new THREE.PerspectiveCamera(
+        60,
+        innerWidth / innerHeight,
+        0.1,
+        200
+      );
+      camera.position.set(0, 22, 20);
+      camera.lookAt(0, 0, 0);
+
+      const ambient = new THREE.HemisphereLight(0x93a4b5, 0x081018, 1.0);
+      scene.add(ambient);
+
+      const directional = new THREE.DirectionalLight(0xaac4ff, 0.8);
+      directional.position.set(15, 25, -10);
+      directional.castShadow = true;
+      directional.shadow.mapSize.width = 2048;
+      directional.shadow.mapSize.height = 2048;
+      directional.shadow.camera.left = -25;
+      directional.shadow.camera.right = 25;
+      directional.shadow.camera.top = 25;
+      directional.shadow.camera.bottom = -25;
+      scene.add(directional);
+
+      const spotlight = new THREE.SpotLight(0x5a8fc4, 10, 35, Math.PI / 6, 0.5);
+      spotlight.position.set(0, 20, 0);
+      spotlight.target.position.set(0, 0, 0);
+      spotlight.castShadow = true;
+      scene.add(spotlight);
+      scene.add(spotlight.target);
+
+      const point1 = new THREE.PointLight(0x4a9fff, 4, 18);
+      point1.position.set(-12, 6, -8);
+      scene.add(point1);
+
+      const point2 = new THREE.PointLight(0x4a9fff, 4, 18);
+      point2.position.set(12, 6, 8);
+      scene.add(point2);
+
+      ctx.lights = {
+        ambient,
+        ambientGround: ambient.groundColor,
+        directional,
+        spotlight,
+        point1,
+        point2,
+      };
+
+      addEventListener("resize", () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+      });
+
+      Object.assign(ctx, { scene, camera, renderer });
+
+      /* -------- Input -------- */
+      const keys = new Set();
+      const cam = {
+        angle: 0,
+        distance: 13,
+        height: 9,
+        targetAngle: 0,
+        mouseX: 0,
+      };
+
+      function updateMouseWorld(ev) {
+        const r = canvas.getBoundingClientRect();
+        ctx.mouseNDC.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+        ctx.mouseNDC.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+        ctx.raycaster.setFromCamera(ctx.mouseNDC, ctx.camera);
+        ctx.raycaster.ray.intersectPlane(ctx.groundPlane, ctx.mouseWorld);
+        cam.mouseX = ctx.mouseNDC.x;
+      }
+
+      canvas.addEventListener("mousemove", updateMouseWorld);
+      canvas.addEventListener("mousedown", (e) => {
+        updateMouseWorld(e);
+        if (e.button === 2 && ctx.playing && !ctx.paused) {
+          player.shoot();
+          e.preventDefault();
+        }
+      });
+      canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+      addEventListener("keydown", (e) => {
+        if (["KeyW", "KeyA", "KeyS", "KeyD"].includes(e.code))
+          e.preventDefault();
+        keys.add(e.code);
+      });
+      addEventListener("keyup", (e) => keys.delete(e.code));
+
+      /* -------- Collision -------- */
+      function resolveCircleVsAABB(pos, radius, aabb) {
+        const clx = Math.max(aabb.min.x, Math.min(pos.x, aabb.max.x));
+        const clz = Math.max(aabb.min.z, Math.min(pos.z, aabb.max.z));
+        const dx = pos.x - clx,
+          dz = pos.z - clz;
+        const dist2 = dx * dx + dz * dz,
+          r2 = radius * radius;
+        if (dist2 < r2) {
+          const dist = Math.sqrt(Math.max(1e-8, dist2));
+          const nx =
+            dist > 0
+              ? dx / dist
+              : Math.abs(pos.x - aabb.min.x) < Math.abs(pos.x - aabb.max.x)
+              ? 1
+              : -1;
+          const nz =
+            dist > 0
+              ? dz / dist
+              : Math.abs(pos.z - aabb.min.z) < Math.abs(pos.z - aabb.max.z)
+              ? 1
+              : -1;
+          const push = radius - dist;
+          pos.x += nx * push;
+          pos.z += nz * push;
+        }
+      }
+
+      /* -------- Projectile -------- */
+      class Projectile {
+        constructor(origin, direction) {
+          this.velocity = direction.clone().normalize().multiplyScalar(25);
+          this.mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.15, 8, 8),
+            new THREE.MeshBasicMaterial({
+              color: 0x44ff88,
+            })
+          );
+          this.mesh.position.copy(origin);
+
+          const light = new THREE.PointLight(0x44ff88, 2, 5);
+          this.mesh.add(light);
+
+          ctx.scene.add(this.mesh);
+          this.lifetime = 2;
+          this.dead = false;
+        }
+
+        update(dt) {
+          this.lifetime -= dt;
+          if (this.lifetime <= 0) {
+            this.dispose();
+            return;
+          }
+
+          this.mesh.position.addScaledVector(this.velocity, dt);
+
+          // Check ghost hits
+          for (const g of ctx.ghosts) {
+            if (g.mesh.position.distanceTo(this.mesh.position) < 0.8) {
+              g.damage(35);
+              this.dispose();
+              return;
+            }
+          }
+
+          // Check portal hits
+          for (const p of ctx.portals) {
+            if (p.mesh.position.distanceTo(this.mesh.position) < 1.2) {
+              p.hit(1);
+              this.dispose();
+              return;
+            }
+          }
+
+          // Check wall collisions
+          for (const w of ctx.walls) {
+            const aabb = w.__aabb;
+            if (
+              this.mesh.position.x > aabb.min.x &&
+              this.mesh.position.x < aabb.max.x &&
+              this.mesh.position.z > aabb.min.z &&
+              this.mesh.position.z < aabb.max.z
+            ) {
+              this.dispose();
+              return;
+            }
+          }
+        }
+
+        dispose() {
+          if (this.dead) return;
+          this.dead = true;
+          ctx.scene.remove(this.mesh);
+          this.mesh.geometry.dispose();
+          this.mesh.material.dispose();
+        }
+      }
+
+      /* -------- Energy Orb -------- */
+      class EnergyOrb {
+        constructor(pos = [0, 0.5, 0]) {
+          this.mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.4, 16, 16),
+            new THREE.MeshStandardMaterial({
+              color: 0xffdd44,
+              emissive: 0xffaa00,
+              metalness: 0.5,
+              roughness: 0.2,
+            })
+          );
+          this.mesh.position.set(pos[0], 0.5, pos[2]);
+          this.mesh.castShadow = true;
+
+          this.light = new THREE.PointLight(0xffdd44, 3, 8);
+          this.light.position.copy(this.mesh.position);
+          this.light.position.y += 1;
+
+          this.mesh.__orbRef = this;
+          ctx.scene.add(this.mesh);
+          ctx.scene.add(this.light);
+
+          this.t = Math.random() * Math.PI * 2;
+        }
+
+        update(dt) {
+          this.t += dt * 3;
+          this.mesh.rotation.y += dt * 2;
+          this.mesh.position.y = 0.5 + Math.sin(this.t) * 0.15;
+          this.light.position.copy(this.mesh.position);
+          this.light.position.y += 1;
+          this.light.intensity = 3 + Math.sin(this.t * 2) * 0.5;
+
+          const d = this.mesh.position.distanceTo(player.mesh.position);
+          if (d < 1.0) {
+            ctx.orbsCollected++;
+            ctx.score += 100;
+            setObjectives(ctx.orbsCollected, ctx.orbsNeeded);
+            setScore(ctx.score);
+            this.dispose();
+
+            if (ctx.orbsCollected >= ctx.orbsNeeded) {
+              levelComplete();
+            }
+          }
+        }
+
+        dispose() {
+          ctx.scene.remove(this.mesh);
+          ctx.scene.remove(this.light);
+          this.mesh.geometry.dispose();
+          this.mesh.material.dispose();
+          ctx.energyOrbs = ctx.energyOrbs.filter((o) => o !== this);
+        }
+      }
+
+      /* -------- Health Pickup -------- */
+      class HealthPickup {
+        constructor(pos = [0, 0.5, 0]) {
+          this.mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.35, 12, 12),
+            new THREE.MeshStandardMaterial({
+              color: 0x44ff88,
+              emissive: 0x228844,
+              metalness: 0.4,
+              roughness: 0.3,
+            })
+          );
+          this.mesh.position.set(pos[0], 0.5, pos[2]);
+          this.mesh.castShadow = true;
+
+          this.light = new THREE.PointLight(0x44ff88, 2, 6);
+          this.light.position.copy(this.mesh.position);
+          this.light.position.y += 0.5;
+
+          this.mesh.__healthRef = this;
+          ctx.scene.add(this.mesh);
+          ctx.scene.add(this.light);
+
+          this.t = Math.random() * Math.PI * 2;
+        }
+
+        update(dt) {
+          this.t += dt * 2.5;
+          this.mesh.rotation.y += dt * 3;
+          this.mesh.position.y = 0.5 + Math.sin(this.t) * 0.12;
+          this.light.position.copy(this.mesh.position);
+          this.light.position.y += 0.5;
+
+          const d = this.mesh.position.distanceTo(player.mesh.position);
+          if (d < 1.0) {
+            player.collectHealth(25);
+            this.dispose();
+          }
+        }
+
+        dispose() {
+          ctx.scene.remove(this.mesh);
+          ctx.scene.remove(this.light);
+          this.mesh.geometry.dispose();
+          this.mesh.material.dispose();
+          ctx.healthPickups = ctx.healthPickups.filter((h) => h !== this);
+        }
+      }
+
+      /* -------- Player -------- */
+      class Player {
+        constructor() {
+          this.mesh = new THREE.Group();
+
+          // Enhanced tactical soldier design
+          const bodyGeo = new THREE.BoxGeometry(0.5, 0.7, 0.3);
+          const bodyMat = new THREE.MeshStandardMaterial({
+            color: 0x2a3a2a,
+            roughness: 0.7,
+            metalness: 0.2,
+          });
+          const body = new THREE.Mesh(bodyGeo, bodyMat);
+          body.position.y = 0.85;
+          body.castShadow = true;
+          this.mesh.add(body);
+
+          const vestGeo = new THREE.BoxGeometry(0.52, 0.5, 0.32);
+          const vestMat = new THREE.MeshStandardMaterial({
+            color: 0x1a2a1a,
+            roughness: 0.6,
+            metalness: 0.3,
+            emissive: 0x0a1a0a,
+          });
+          const vest = new THREE.Mesh(vestGeo, vestMat);
+          vest.position.y = 0.9;
+          vest.position.z = 0.01;
+          vest.castShadow = true;
+          this.mesh.add(vest);
+          this.vest = vest;
+
+          const headGeo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+          const headMat = new THREE.MeshStandardMaterial({
+            color: 0x3a4a3a,
+            roughness: 0.5,
+            metalness: 0.4,
+          });
+          const head = new THREE.Mesh(headGeo, headMat);
+          head.position.y = 1.4;
+          head.castShadow = true;
+          this.mesh.add(head);
+
+          const visorGeo = new THREE.BoxGeometry(0.3, 0.15, 0.02);
+          const visorMat = new THREE.MeshStandardMaterial({
+            color: 0x1a2a3a,
+            roughness: 0.1,
+            metalness: 0.9,
+            emissive: 0x0a2a4a,
+            emissiveIntensity: 0.5,
+          });
+          const visor = new THREE.Mesh(visorGeo, visorMat);
+          visor.position.set(0, 1.4, 0.17);
+          visor.castShadow = true;
+          this.mesh.add(visor);
+          this.visor = visor;
+
+          const armGeo = new THREE.BoxGeometry(0.2, 0.6, 0.2);
+          const armMat = new THREE.MeshStandardMaterial({
+            color: 0x2a3a2a,
+            roughness: 0.7,
+          });
+          const leftArm = new THREE.Mesh(armGeo, armMat);
+          leftArm.position.set(-0.35, 0.8, 0);
+          leftArm.castShadow = true;
+          this.mesh.add(leftArm);
+
+          const rightArm = new THREE.Mesh(armGeo, armMat);
+          rightArm.position.set(0.35, 0.8, 0);
+          rightArm.castShadow = true;
+          this.mesh.add(rightArm);
+
+          const legGeo = new THREE.BoxGeometry(0.2, 0.5, 0.2);
+          const leftLeg = new THREE.Mesh(legGeo, armMat);
+          leftLeg.position.set(-0.15, 0.25, 0);
+          leftLeg.castShadow = true;
+          this.mesh.add(leftLeg);
+
+          const rightLeg = new THREE.Mesh(legGeo, armMat);
+          rightLeg.position.set(0.15, 0.25, 0);
+          rightLeg.castShadow = true;
+          this.mesh.add(rightLeg);
+
+          const weaponBodyGeo = new THREE.BoxGeometry(0.1, 0.1, 0.6);
+          const weaponMat = new THREE.MeshStandardMaterial({
+            color: 0x1a1a1a,
+            roughness: 0.6,
+            metalness: 0.7,
+          });
+          const weaponBody = new THREE.Mesh(weaponBodyGeo, weaponMat);
+          weaponBody.position.set(0.25, 0.75, 0.35);
+          weaponBody.rotation.x = -Math.PI / 8;
+          weaponBody.castShadow = true;
+          this.mesh.add(weaponBody);
+
+          const barrelGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8);
+          const barrel = new THREE.Mesh(barrelGeo, weaponMat);
+          barrel.rotation.x = Math.PI / 2;
+          barrel.position.set(0.25, 0.75, 0.6);
+          barrel.castShadow = true;
+          this.mesh.add(barrel);
+
+          const backpackGeo = new THREE.BoxGeometry(0.35, 0.4, 0.15);
+          const backpackMat = new THREE.MeshStandardMaterial({
+            color: 0x3a4a2a,
+            roughness: 0.85,
+          });
+          const backpack = new THREE.Mesh(backpackGeo, backpackMat);
+          backpack.position.set(0, 0.9, -0.23);
+          backpack.castShadow = true;
+          this.mesh.add(backpack);
+
+          const padGeo = new THREE.BoxGeometry(0.15, 0.1, 0.25);
+          const padMat = new THREE.MeshStandardMaterial({
+            color: 0x1a2a1a,
+            roughness: 0.6,
+            metalness: 0.3,
+          });
+          const leftPad = new THREE.Mesh(padGeo, padMat);
+          leftPad.position.set(-0.33, 1.15, 0);
+          leftPad.castShadow = true;
+          this.mesh.add(leftPad);
+
+          const rightPad = new THREE.Mesh(padGeo, padMat);
+          rightPad.position.set(0.33, 1.15, 0);
+          rightPad.castShadow = true;
+          this.mesh.add(rightPad);
+
+          this.mesh.position.set(0, 0, 6);
+          this.mesh.castShadow = true;
+          this.mesh.receiveShadow = true;
+          ctx.scene.add(this.mesh);
+
+          this.radius = 0.45;
+          this.baseSpeed = 6.5;
+          this.boostSpeed = 11.0;
+          this.speed = this.baseSpeed;
+          this.cooldown = 0;
+          this.health = 100;
+          this.fear = 0;
+          this.boostTimer = 0;
+        }
+
+        collectHealth(amount = 25) {
+          this.health = Math.min(100, this.health + amount);
+          setHealth(this.health);
+          this.boostTimer = 4.0;
+          this.speed = this.boostSpeed;
+          setBoost(true);
+        }
+
+        update(dt) {
+          if (this.cooldown > 0) this.cooldown -= dt;
+
+          if (this.boostTimer > 0) {
+            this.boostTimer -= dt;
+            if (this.boostTimer <= 0) {
+              this.speed = this.baseSpeed;
+              setBoost(false);
+            }
+          }
+
+          const inputX =
+            (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0);
+          const inputZ =
+            (keys.has("KeyS") ? 1 : 0) - (keys.has("KeyW") ? 1 : 0);
+
+          if (this.vest) {
+            this.vest.material.emissiveIntensity =
+              this.boostTimer > 0 ? 1.2 : 0.3;
+          }
+
+          if (inputX !== 0 || inputZ !== 0) {
+            const cos = Math.cos(-cam.angle);
+            const sin = Math.sin(-cam.angle);
+            const moveX = inputX * cos + inputZ * sin;
+            const moveZ = -inputX * sin + inputZ * cos;
+            const length = Math.sqrt(moveX * moveX + moveZ * moveZ);
+            this.mesh.position.x += (moveX / length) * this.speed * dt;
+            this.mesh.position.z += (moveZ / length) * this.speed * dt;
+          }
+
+          for (let k = 0; k < 2; k++) {
+            for (const w of ctx.walls) {
+              resolveCircleVsAABB(this.mesh.position, this.radius, w.__aabb);
+            }
+          }
+
+          const f = new THREE.Vector3()
+            .copy(ctx.mouseWorld)
+            .setY(0)
+            .sub(this.mesh.position)
+            .normalize();
+          this.mesh.lookAt(
+            this.mesh.position.x + f.x,
+            this.mesh.position.y,
+            this.mesh.position.z + f.z
+          );
+
+          let minDist = Infinity;
+          for (const g of ctx.ghosts) {
+            const d = g.mesh.position.distanceTo(this.mesh.position);
+            if (d < minDist) minDist = d;
+          }
+          const fearTarget = minDist < 5 ? 1 - minDist / 5 : 0;
+          this.fear += (fearTarget - this.fear) * 0.08;
+
+          if (this.visor) {
+            const baseColor = new THREE.Color(0x0a2a4a);
+            const fearColor = baseColor
+              .clone()
+              .lerp(new THREE.Color(0xff2244), this.fear);
+            this.visor.material.emissive.copy(fearColor);
+            this.visor.material.emissiveIntensity = 0.5 + this.fear * 0.8;
+          }
+
+          cam.targetAngle = cam.mouseX * Math.PI * 1.5;
+          cam.angle += (cam.targetAngle - cam.angle) * 0.1;
+
+          const camX =
+            this.mesh.position.x + Math.sin(cam.angle) * cam.distance;
+          const camZ =
+            this.mesh.position.z + Math.cos(cam.angle) * cam.distance;
+          const camY = this.mesh.position.y + cam.height;
+
+          const targetPos = new THREE.Vector3(camX, camY, camZ);
+          ctx.camera.position.lerp(targetPos, 0.1);
+
+          const lookTarget = new THREE.Vector3().copy(this.mesh.position);
+          lookTarget.y += 1;
+          ctx.camera.lookAt(lookTarget);
+        }
+
+        applyDamage(dmg) {
+          this.health -= dmg;
+          setHealth(this.health);
+          if (this.health <= 0) gameOver("💀 MISSION FAILED");
+        }
+
+        shoot() {
+          if (this.cooldown > 0) return;
+          this.cooldown = 0.2;
+
+          const origin = new THREE.Vector3(
+            this.mesh.position.x,
+            0.8,
+            this.mesh.position.z
+          );
+          const dir = new THREE.Vector3()
+            .copy(ctx.mouseWorld)
+            .setY(0.8)
+            .sub(origin)
+            .normalize();
+
+          const projectile = new Projectile(origin, dir);
+          ctx.projectiles.push(projectile);
+        }
+
+        reset() {
+          this.health = 100;
+          this.fear = 0;
+          this.boostTimer = 0;
+          this.speed = this.baseSpeed;
+          setHealth(100);
+          setBoost(false);
+          this.mesh.position.set(0, 0, 6);
+          this.mesh.scale.set(1, 1, 1);
+        }
+      }
+
+      /* -------- Ghost -------- */
+      class Ghost {
+        constructor(pos = [0, 0.5, 0]) {
+          this.hp = 70 + ctx.currentLevel * 15;
+          this.speed = 2.0 + ctx.currentLevel * 0.3;
+          this.cool = 0;
+          this.floatOffset = Math.random() * Math.PI * 2;
+          this.mesh = new THREE.Group();
+
+          const mat = new THREE.MeshPhongMaterial({
+            color: 0x5a6a78,
+            emissive: 0x1a2530,
+            transparent: true,
+            opacity: 0.75,
+          });
+
+          const body = new THREE.Mesh(
+            new THREE.DodecahedronGeometry(0.6, 0),
+            mat
+          );
+          body.scale.set(1, 1.4, 1);
+          body.castShadow = true;
+          this.mesh.add(body);
+          this.body = body;
+
+          const clawMat = new THREE.MeshStandardMaterial({
+            color: 0x2a2a2a,
+            roughness: 0.5,
+            metalness: 0.4,
+          });
+          for (let i = -1; i <= 1; i += 2) {
+            const arm = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.05, 0.15, 0.8, 6),
+              clawMat
+            );
+            arm.position.set(i * 0.5, 0.2, 0.1);
+            arm.rotation.z = i * 0.8;
+            arm.castShadow = true;
+            this.mesh.add(arm);
+          }
+
+          const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2244 });
+          for (let i = -1; i <= 1; i += 2) {
+            const eye = new THREE.Mesh(
+              new THREE.SphereGeometry(0.12, 8, 8),
+              eyeMat
+            );
+            eye.position.set(i * 0.2, 0.2, 0.4);
+            this.mesh.add(eye);
+          }
+
+          const mouth = new THREE.Mesh(
+            new THREE.TorusGeometry(0.15, 0.05, 4, 8, Math.PI),
+            new THREE.MeshBasicMaterial({ color: 0x000000 })
+          );
+          mouth.rotation.x = Math.PI / 2;
+          mouth.position.set(0, -0.05, 0.42);
+          this.mesh.add(mouth);
+
+          const trailGeo = new THREE.SphereGeometry(0.35, 8, 8);
+          const trailMat = new THREE.MeshBasicMaterial({
+            color: 0x1a2233,
+            transparent: true,
+            opacity: 0.25,
+          });
+          this.trail = new THREE.Mesh(trailGeo, trailMat);
+          this.trail.position.set(pos[0], 0.1, pos[2]);
+          ctx.scene.add(this.trail);
+
+          this.mesh.position.set(pos[0], 0.5, pos[2]);
+          this.mesh.__ghostRef = this;
+          ctx.scene.add(this.mesh);
+        }
+
+        update(dt) {
+          this.floatOffset += dt * 3;
+          const floatY =
+            Math.sin(this.floatOffset) * 0.2 +
+            Math.sin(this.floatOffset * 2.3) * 0.08;
+
+          const flicker = 0.65 + Math.sin(this.floatOffset * 10) * 0.25;
+          if (this.body && this.body.material) {
+            this.body.material.opacity = flicker;
+          }
+
+          const p = player.mesh.position;
+          const v = new THREE.Vector3(
+            p.x - this.mesh.position.x,
+            0,
+            p.z - this.mesh.position.z
+          );
+          const d = v.length();
+          if (d > 0.001) v.normalize();
+          this.mesh.position.addScaledVector(v, this.speed * dt);
+          this.mesh.position.y = 0.5 + floatY;
+
+          this.mesh.lookAt(p.x, this.mesh.position.y, p.z);
+          this.mesh.rotation.z = Math.sin(this.floatOffset * 1.5) * 0.15;
+
+          this.trail.position.lerp(this.mesh.position.clone().setY(0.1), 0.1);
+
+          if (Math.random() < 0.001 * ctx.currentLevel && d > 8) {
+            this.mesh.position.set(
+              p.x + (Math.random() - 0.5) * 6,
+              0.5,
+              p.z + (Math.random() - 0.5) * 6
+            );
+          }
+
+          this.cool -= dt;
+          if (d < 1.0 && this.cool <= 0) {
+            player.applyDamage(8 + ctx.currentLevel * 2);
+            this.cool = 0.8;
+          }
+
+          if (this.hp <= 0) {
+            if (this.body && this.body.material) {
+              this.body.material.opacity -= dt * 2;
+              if (this.body.material.opacity <= 0) this.dispose();
+            }
+          }
+        }
+
+        damage(n) {
+          if (this.hp <= 0) return;
+          this.hp -= n;
+          if (this.hp <= 0) {
+            ctx.score += 15 * ctx.currentLevel;
+            setScore(ctx.score);
+          }
+        }
+
+        dispose() {
+          if (this.disposed) return;
+          this.disposed = true;
+          ctx.scene.remove(this.mesh);
+          ctx.scene.remove(this.trail);
+          this.mesh.children.forEach((child) => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) child.material.dispose();
+          });
+          if (this.trail.geometry) this.trail.geometry.dispose();
+          if (this.trail.material) this.trail.material.dispose();
+        }
+      }
+
+      /* -------- Portal -------- */
+      class Portal {
+        constructor(pos = [0, 0, -5], opts = {}) {
+          this.pos = pos;
+          this.rate = opts.rate || 0.3 + ctx.currentLevel * 0.1;
+          this.max = opts.max || 3 + ctx.currentLevel;
+          this.hp = opts.hp || 5 + ctx.currentLevel * 2;
+          this.count = 0;
+          this.timer = 0;
+          this.dead = false;
+          this.t = Math.random() * 10;
+
+          const geo = new THREE.TorusGeometry(0.9, 0.2, 12, 32);
+          const mat = new THREE.MeshStandardMaterial({
+            color: 0x6a9fff,
+            emissive: 0x103355,
+            metalness: 0.3,
+            roughness: 0.3,
+          });
+          this.mesh = new THREE.Mesh(geo, mat);
+          this.mesh.rotation.x = Math.PI / 2;
+          this.mesh.position.set(pos[0], 0.4, pos[2]);
+          this.mesh.castShadow = true;
+          this.mesh.__portalRef = this;
+          ctx.scene.add(this.mesh);
+
+          this.light = new THREE.PointLight(0x6eb8ff, 3, 10, 2.0);
+          this.light.position.set(pos[0], 1.5, pos[2]);
+          this.light.castShadow = true;
+          ctx.scene.add(this.light);
+        }
+
+        update(dt) {
+          this.t += dt;
+          this.mesh.rotation.z += dt * 0.5;
+          this.light.intensity =
+            2.5 + Math.sin(this.t * 6) * 0.8 + Math.random() * 0.2;
+
+          if (this.dead || !ctx.playing) return;
+
+          this.timer -= dt;
+          if (this.timer <= 0 && this.count < this.max) {
+            const g = new Ghost([
+              this.pos[0] + (Math.random() - 0.5) * 2,
+              0.5,
+              this.pos[2] + (Math.random() - 0.5) * 2,
+            ]);
+            ctx.ghosts.push(g);
+            this.count++;
+            this.timer = 1 / this.rate;
+          }
+        }
+
+        hit(n = 1) {
+          if (this.dead) return;
+          this.hp -= n;
+          if (this.hp <= 0) {
+            this.dead = true;
+            this.light.visible = false;
+            this.mesh.material.color.setHex(0x2a3a49);
+            this.mesh.material.emissive.setHex(0x0a0a0a);
+            ctx.score += 75 * ctx.currentLevel;
+            setScore(ctx.score);
+
+            if (ctx.portals.every((p) => p.dead)) {
+              ctx.score += 200 * ctx.currentLevel;
+              setScore(ctx.score);
+            }
+          }
+        }
+
+        reset() {
+          this.dead = false;
+          this.count = 0;
+          this.timer = 0;
+          this.rate = 0.3 + ctx.currentLevel * 0.1;
+          this.max = 3 + ctx.currentLevel;
+          this.hp = 5 + ctx.currentLevel * 2;
+          this.mesh.material.color.setHex(0x6a9fff);
+          this.mesh.material.emissive.setHex(0x103355);
+          this.light.visible = true;
+        }
+      }
+
+      /* -------- Level Building -------- */
+      function addWall(w, h, d, x, z, color = 0x1a2731) {
+        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        mesh.position.set(x, h / 2, z);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        ctx.scene.add(mesh);
+        mesh.__aabb = {
+          min: { x: x - w / 2, z: z - d / 2 },
+          max: { x: x + w / 2, z: z + d / 2 },
+        };
+        ctx.walls.push(mesh);
+      }
+
+      function buildRoom() {
+        const ROOM_WIDTH = 60;
+        const ROOM_DEPTH = 40;
+        const WALL_HEIGHT = 4;
+
+        const ground = new THREE.Mesh(
+          new THREE.PlaneGeometry(ROOM_WIDTH, ROOM_DEPTH, 20, 20),
+          new THREE.MeshStandardMaterial({
+            color: 0x1a2428,
+            roughness: 0.9,
+            metalness: 0.1,
+          })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        ctx.scene.add(ground);
+        ctx.ground = ground;
+
+        addWall(ROOM_WIDTH, WALL_HEIGHT, 0.8, 0, -ROOM_DEPTH / 2);
+        addWall(ROOM_WIDTH, WALL_HEIGHT, 0.8, 0, ROOM_DEPTH / 2);
+        addWall(0.8, WALL_HEIGHT, ROOM_DEPTH, -ROOM_WIDTH / 2, 0);
+        addWall(0.8, WALL_HEIGHT, ROOM_DEPTH, ROOM_WIDTH / 2, 0);
+
+        const obstacleColor = 0x1f2a30;
+        const obstacleCount = 5 + ctx.currentLevel;
+        for (let i = 0; i < Math.min(obstacleCount, 10); i++) {
+          const x = (Math.random() - 0.5) * (ROOM_WIDTH - 10);
+          const z = (Math.random() - 0.5) * (ROOM_DEPTH - 10);
+          const w = 1.5 + Math.random() * 2;
+          const d = 0.8 + Math.random() * 0.5;
+          addWall(w, WALL_HEIGHT, d, x, z, obstacleColor);
+        }
+
+        const stripe = new THREE.Mesh(
+          new THREE.PlaneGeometry(ROOM_WIDTH * 0.7, 0.6),
+          new THREE.MeshBasicMaterial({
+            color: 0xa0b8c8,
+            transparent: true,
+            opacity: 0.15,
+          })
+        );
+        stripe.rotation.x = -Math.PI / 2;
+        stripe.position.set(0, 0.02, 0);
+        ctx.scene.add(stripe);
+        ctx.stripe = stripe;
+
+        const portalPositions = [
+          [-ROOM_WIDTH / 3, 0, -ROOM_DEPTH / 3],
+          [ROOM_WIDTH / 3, 0, ROOM_DEPTH / 3],
+          [0, 0, -ROOM_DEPTH / 2 + 8],
+        ];
+        portalPositions.forEach((pos) => {
+          const p = new Portal(pos);
+          ctx.portals.push(p);
+        });
+      }
+
+      function spawnEnergyOrbs() {
+        const count = ctx.orbsNeeded;
+        const positions = [];
+
+        // Generate positions in a circle around the center
+        for (let i = 0; i < count; i++) {
+          const angle = (i / count) * Math.PI * 2;
+          const radius = 10 + Math.random() * 5;
+          const x = Math.cos(angle) * radius;
+          const z = Math.sin(angle) * radius;
+          positions.push([x, 0.5, z]);
+        }
+
+        // Add some random positions if level is high
+        if (count > 3) {
+          for (let i = 0; i < Math.floor(count / 2); i++) {
+            const x = (Math.random() - 0.5) * 30;
+            const z = (Math.random() - 0.5) * 20;
+            positions.push([x, 0.5, z]);
+          }
+        }
+
+        // Create orbs at all positions
+        positions.forEach((pos) => {
+          const orb = new EnergyOrb(pos);
+          ctx.energyOrbs.push(orb);
+        });
+      }
+
+      function spawnHealthPickups() {
+        const count = 3 + ctx.currentLevel * 2;
+        for (let i = 0; i < count; i++) {
+          const x = (Math.random() - 0.5) * 40;
+          const z = (Math.random() - 0.5) * 30;
+          const hp = new HealthPickup([x, 0.5, z]);
+          ctx.healthPickups.push(hp);
+        }
+      }
+
+      /* -------- Game Flow -------- */
+      function resetGame() {
+        ctx.playing = false;
+        ctx.paused = false;
+        $("pauseIndicator").classList.remove("visible");
+
+        ctx.currentLevel = 1;
+        ctx.orbsCollected = 0;
+        ctx.orbsNeeded = 1;
+        ctx.score = 0;
+        ctx.health = 100;
+        ctx.timeLeft = 120;
+
+        setLevel(ctx.currentLevel);
+        setObjectives(ctx.orbsCollected, ctx.orbsNeeded);
+        setScore(ctx.score);
+        setHealth(ctx.health);
+        setTimer(ctx.timeLeft);
+        setBoost(false);
+
+        for (const g of ctx.ghosts) g.dispose();
+        ctx.ghosts.length = 0;
+
+        for (const o of ctx.energyOrbs) o.dispose();
+        ctx.energyOrbs.length = 0;
+
+        for (const h of ctx.healthPickups) h.dispose();
+        ctx.healthPickups.length = 0;
+
+        for (const proj of ctx.projectiles) proj.dispose();
+        ctx.projectiles.length = 0;
+
+        ctx.portals.forEach((p) => p.reset());
+        player.reset();
+
+        spawnEnergyOrbs();
+        spawnHealthPickups();
+
+        $("title").textContent = "EIDOLON";
+        $("subtitle").textContent = "Quantum Containment Protocol";
+        $("storyText").innerHTML = INTRO_STORY;
+        showOverlay();
+      }
+
+      function gameOver(text) {
+        ctx.playing = false;
+        $("title").textContent = text || "💀 MISSION FAILED";
+        $(
+          "subtitle"
+        ).textContent = `Level ${ctx.currentLevel} • Score: ${ctx.score}`;
+        $(
+          "storyText"
+        ).innerHTML = `<strong>Mission terminated.</strong><br><br>The breach consumed you, Agent. But we can try again.<br><br>Press <strong>R</strong> to restart or click below.`;
+        showOverlay();
+      }
+
+      function levelComplete() {
+        // Check if player won the game
+        if (ctx.currentLevel >= 5) {
+          winGame();
+          return;
+        }
+
+        ctx.playing = false;
+        ctx.currentLevel++;
+        ctx.orbsCollected = 0;
+        ctx.orbsNeeded = ctx.currentLevel;
+        ctx.timeLeft += 30;
+
+        setLevel(ctx.currentLevel);
+        setObjectives(ctx.orbsCollected, ctx.orbsNeeded);
+        setTimer(ctx.timeLeft);
+
+        for (const g of ctx.ghosts) g.dispose();
+        ctx.ghosts.length = 0;
+
+        for (const o of ctx.energyOrbs) o.dispose();
+        ctx.energyOrbs.length = 0;
+
+        for (const h of ctx.healthPickups) h.dispose();
+        ctx.healthPickups.length = 0;
+
+        for (const proj of ctx.projectiles) proj.dispose();
+        ctx.projectiles.length = 0;
+
+        ctx.portals.forEach((p) => p.reset());
+
+        player.health = Math.min(100, player.health + 20);
+        setHealth(player.health);
+
+        spawnEnergyOrbs();
+        spawnHealthPickups();
+
+        $("title").textContent = `🎯 LEVEL ${ctx.currentLevel} UNLOCKED`;
+        $("subtitle").textContent = `Score: ${ctx.score}`;
+        $(
+          "storyText"
+        ).innerHTML = `<strong>✅ Containment successful!</strong><br><br>Quantum breach stabilized. But sensors detect increased dimensional instability.<br><br><strong>Level ${
+          ctx.currentLevel
+        } Parameters:</strong><br>• Collect <strong>${
+          ctx.orbsNeeded
+        }</strong> energy orbs<br>• Eidolon speed: <strong>+${
+          (ctx.currentLevel - 1) * 30
+        }%</strong><br>• Portal spawn rate: <strong>+${
+          (ctx.currentLevel - 1) * 33
+        }%</strong><br>• Health pickups: <strong>${
+          3 + ctx.currentLevel * 2
+        }</strong><br>• Bonus time: <strong>+30 seconds</strong><br>• Health restored: <strong>+20 HP</strong><br><br>${
+          ctx.currentLevel === 5
+            ? '<strong style="color: #ffaa44;">⚠️ FINAL LEVEL! Complete this to win!</strong><br><br>'
+            : ""
+        }Ready for the next wave, Agent?`;
+        $("card").classList.add("level-complete");
+        setTimeout(() => $("card").classList.remove("level-complete"), 500);
+        showOverlay();
+      }
+
+      function winGame() {
+        ctx.playing = false;
+        $("title").textContent = "🏆 MISSION COMPLETE!";
+        $("subtitle").textContent = `Final Score: ${ctx.score}`;
+        $(
+          "storyText"
+        ).innerHTML = `<strong>🎉 OUTSTANDING WORK, AGENT!</strong><br><br>All quantum breaches have been successfully contained. The dimensional threat has been neutralized.<br><br><strong>Final Statistics:</strong><br>• Levels Completed: <strong>5/5</strong><br>• Final Score: <strong>${ctx.score}</strong><br>• Eidolons Eliminated: <strong>Countless</strong><br>• Portals Destroyed: <strong>All</strong><br><br><strong>Mission Status:</strong> <span style="color: #44ff88;">SUCCESS</span><br><br>You've proven yourself as an elite containment specialist. The facility is secure... for now.<br><br>Press <strong>R</strong> to play again and beat your score!`;
+        showOverlay();
+      }
+
+      /* -------- Initialize -------- */
+      buildRoom();
+      player = new Player();
+      spawnEnergyOrbs();
+      spawnHealthPickups();
+
+      setHealth(ctx.health);
+      setScore(ctx.score);
+      setLevel(ctx.currentLevel);
+      setObjectives(ctx.orbsCollected, ctx.orbsNeeded);
+      setTimer(ctx.timeLeft);
+
+      /* -------- Game Loop -------- */
+      let last = performance.now();
+      let uiTick = 0;
+
+      function frame(now) {
+        const dt = Math.min((now - last) / 1000, 0.033);
+        last = now;
+
+        if (ctx.playing && !ctx.paused) {
+          player.update(dt);
+
+          for (let i = ctx.ghosts.length - 1; i >= 0; i--) {
+            const g = ctx.ghosts[i];
+            g.update(dt);
+            if (g.disposed) ctx.ghosts.splice(i, 1);
+          }
+
+          for (let i = ctx.projectiles.length - 1; i >= 0; i--) {
+            const proj = ctx.projectiles[i];
+            proj.update(dt);
+            if (proj.dead) ctx.projectiles.splice(i, 1);
+          }
+
+          ctx.portals.forEach((p) => p.update(dt));
+          ctx.energyOrbs.forEach((o) => o.update(dt));
+          ctx.healthPickups.forEach((h) => h.update(dt));
+
+          if (
+            Math.random() < 0.003 &&
+            ctx.healthPickups.length < 5 + ctx.currentLevel * 2
+          ) {
+            const x = (Math.random() - 0.5) * 40;
+            const z = (Math.random() - 0.5) * 30;
+            const hp = new HealthPickup([x, 0.5, z]);
+            ctx.healthPickups.push(hp);
+          }
+
+          ctx.timeLeft -= dt;
+          uiTick += dt;
+          if (uiTick > 0.25) {
+            setTimer(ctx.timeLeft);
+            uiTick = 0;
+          }
+          if (ctx.timeLeft <= 0) gameOver("⏱️ TIME EXPIRED");
+        }
+
+        ctx.renderer.render(ctx.scene, ctx.camera);
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>
